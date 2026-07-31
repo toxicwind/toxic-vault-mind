@@ -1,0 +1,65 @@
+{
+	"//": "Active config lives at <vault>/.vault-mind/vault-mind.config.json. This file is a reference sample.",
+	"version": 2,
+	"collections": {
+		"main": {
+			"path": "collections/main.jsonl",
+			"schema": ["id", "domain", "source", "fact", "tag", "artifact"],
+			"dedupField": "fact"
+		},
+		"pending": {
+			"path": "collections/pending.jsonl",
+			"schema": "main"
+		},
+		"context_events": {
+			"path": "collections/context_events.jsonl",
+			"schema": ["id", "type", "session_entry_id", "content", "timestamp", "tags"],
+			"dedupField": "id"
+		}
+	},
+	"injectors": [
+		{
+			"name": "draft-context",
+			"regex": "draft\\s+(\\S+)",
+			"collection": "main",
+			"filterField": "tag",
+			"artifactPath": "collections/artifact.md"
+		}
+	],
+	"vaultMind": {
+		"dataDir": ".lancedb",
+		"embedding": {
+			"localUrl": "http://127.0.0.1:11434",
+			"useTransformers": true
+		},
+		"graph": {
+			"enabled": true,
+			"canvasSync": false,
+			"canvasPath": "Agent/Library/Library-Graph.canvas"
+		},
+		"vaults": {
+			"default": {
+				"path": "~/Obsidian/MyVault",
+				"autoStart": false,
+				"collectionPrefix": "myvault"
+			}
+		},
+		"files": {
+			"queue": ".vault-mind/agent-queue.jsonl",
+			"serverState": ".vault-mind/server.json",
+			"manualDispatch": ".vault-mind/manual-dispatch.md"
+		},
+		"ftsEnabled": true,
+		"httpPort": 11435,
+		"autoIndex": false
+	},
+	"extensionCompatibility": {
+		"pi-context": {
+			"enabled": true,
+			"tagPatterns": [],
+			"enhanceInjectors": false,
+			"autoEnableAcm": true,
+			"indexContextEvents": true
+		}
+	}
+}

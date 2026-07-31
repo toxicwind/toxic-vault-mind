@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# pi-session-query: A wrapper to allow external agents to query pi session history.
+# Usage: ./pi-session-query [flags] "your search query"
+# Flags:
+#   --json           Return results in JSON format.
+#   --limit <num>    Number of results to return (default: 5).
+#   --exclude <ids>  Comma-separated list of session IDs to ignore.
+
+FORMAT="Text"
+LIMIT=5
+EXCLUDE=""
+
+# Parse flags
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+    --json) FORMAT="JSON"; shift ;;
+    --limit) LIMIT="$2"; shift 2 ;;
+    --exclude) EXCLUDE="$2"; shift 2 ;;
+    -*) echo "Unknown option: $1"; exit 1 ;;
+    *) QUERY="$1"; shift ;;
+  esac
+done
+
+if [ -z "$QUERY" ]; then
+  echo "Error: No search query provided."
+  echo "Usage: $0 [--json] [--limit num] [--exclude ids] \"your search query\""
+  exit 1
+fi
+
+# Build the prompt based on flags
+PROMPT="Use the session-history skill to search for: '$QUERY'. 
+Limit the results to the top $LIMIT most relevant sessions."
+
+if [ -n "$EXCLUDE" ]; then
+  PROMPT="$PROMPT 
+IMPORTANT: Exclude these session IDs from the results: $EXCLUDE."
+fi
+
+if [ "$FORMAT" == "JSON" ]; then
+  PROMPT="$PROMPT 
+Return the results ONLY as a valid JSON array of objects. 
+Each object must have: \"id\", \"date\", and \"summary\". 
+Do not include any markdown formatting, backticks, or conversational text."
+else
+  PROMPT="$PROMPT 
+Return ONLY a concise list including:
+- Session ID
+- Date
+- A 1-sentence summary of the relevant content.
+Do not include conversational filler or introductory text."
+fi
+
+pi "$PROMPT"
