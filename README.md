@@ -1,14 +1,14 @@
-# pi-vault-mind
+# toxic-vault-mind
 
-[![npm version](https://img.shields.io/npm/v/pi-vault-mind)](https://www.npmjs.com/package/pi-vault-mind)
-[![license](https://img.shields.io/npm/l/pi-vault-mind)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/toxic-vault-mind)](https://www.npmjs.com/package/toxic-vault-mind)
+[![license](https://img.shields.io/npm/l/toxic-vault-mind)](LICENSE)
 [![pi-extension](https://img.shields.io/badge/pi-extension-blue)](https://github.com/mariozechner/pi)
 
 Passive Obsidian vault extension for the [pi](https://github.com/mariozechner/pi) agent ecosystem. Watches `@agent` markers in your vault, dispatches forked subagents, and stores results in LanceDB with vector + FTS + graph. Multi-agent "Drop & Forget" workflow.
 
 > Looking for the legacy ledger-first extension (predecessor project)?
-> See [kylebrodeur/pi-qmd-ledger](https://github.com/kylebrodeur/pi-qmd-ledger).
-> This project was renamed twice: `pi-qmd-ledger` → `pi-knowledge-store` (intermediate) → `pi-vault-mind` (current).
+> See [toxicwind/pi-qmd-ledger](https://github.com/toxicwind/pi-qmd-ledger).
+> This project was renamed twice: `pi-qmd-ledger` → `pi-knowledge-store` (intermediate) → `toxic-vault-mind` (current).
 
 ## Features
 
@@ -65,14 +65,14 @@ See [`docs/architecture/index.md`](docs/architecture/index.md) for the full agen
 
 ## Obsidian Counterparts & Requirements
 
-pi-vault-mind works on any directory, but for the **full Obsidian experience**, you need a few things in Obsidian itself:
+toxic-vault-mind works on any directory, but for the **full Obsidian experience**, you need a few things in Obsidian itself:
 
 ### Required: An Obsidian vault
-Just point `/vm setup` at any directory used as an Obsidian vault. pi-vault-mind auto-detects `.obsidian/` and respects `.obsidian/`, `.git/`, `.trash/`.
+Just point `/vm setup` at any directory used as an Obsidian vault. toxic-vault-mind auto-detects `.obsidian/` and respects `.obsidian/`, `.git/`, `.trash/`.
 
 ### Recommended: Official Obsidian CLI (1.12+)
 
-The [official Obsidian CLI](https://help.obsidian.md/cli) lets you install plugins, themes, and manage vault state from the terminal. **This is the safest, most direct install path** for pi-vault-mind's required plugins.
+The [official Obsidian CLI](https://help.obsidian.md/cli) lets you install plugins, themes, and manage vault state from the terminal. **This is the safest, most direct install path** for toxic-vault-mind's required plugins.
 
 Install: Open Obsidian → **Settings → General → Command line interface** → enable. Follow the prompt to register the CLI to your system PATH. Restart your terminal. Test: `obsidian help`.
 
@@ -83,7 +83,7 @@ obsidian plugin:install id=obsidian-breadcrumbs enable
 obsidian plugin:install id=graph-analysis enable
 obsidian plugin:install id=actions-uri enable
 obsidian plugin:install id=obsidian42-brat enable
-obsidian plugin:install id=obsidian-pi-vault-mind enable
+obsidian plugin:install id=obsidian-toxic-vault-mind enable
 
 Full walkthrough: see [`docs/integrations/OBSIDIAN_SETUP.md`](docs/integrations/OBSIDIAN_SETUP.md).
 
@@ -95,7 +95,7 @@ Full walkthrough: see [`docs/integrations/OBSIDIAN_SETUP.md`](docs/integrations/
 | **Breadcrumbs** | `obsidian-breadcrumbs` | Parses typed edges (`agent:related-to`, `agent:derived-from`) in YAML frontmatter. The recommended way to display the agent-extracted knowledge graph in Obsidian's UI. | Highly recommended |
 | **Graph Analysis** | `graph-analysis` | Co-citation discovery, Jaccard similarity on the native Obsidian graph. Surfaces "always cited together but not yet linked" notes — a key agent discovery signal. | Highly recommended |
 | **Actions URI** | `actions-uri` | `x-callback-url` endpoints so the Manager agent can trigger Obsidian UI commands (open notes, run commands) from pi. | Recommended |
-| **Vault Mind plugin** | `obsidian-pi-vault-mind` | Native setup/status/chat UI and HTTP bridge integration. | Recommended |
+| **Vault Mind plugin** | `obsidian-toxic-vault-mind` | Native setup/status/chat UI and HTTP bridge integration. | Recommended |
 
 ### Recommended: `notesmd-cli` (headless alternative)
 
@@ -157,7 +157,7 @@ These skills let the **Miner, Broadcaster, and Heavy-Lifter agents** produce val
 
 ### Built-in Obsidian features used
 
-| Feature | How pi-vault-mind uses it |
+| Feature | How toxic-vault-mind uses it |
 |---|---|
 | **YAML frontmatter properties** | Strict schema for typed edges (`agent:related-to`, `status: needs-podcast`, `domain:`, `tag:`) |
 | **Callouts** | `> [!info]`, `> [!warning]` for syntheses and contradictions |
@@ -193,15 +193,15 @@ The Broadcaster agent can generate podcasts, study guides, and slide decks from 
 ### 1. Install with pi
 
 ```bash
-pi install npm:pi-vault-mind              # latest
-pi install npm:pi-vault-mind@0.7.0        # pinned
-pi -e npm:pi-vault-mind                   # try without installing
+pi install npm:toxic-vault-mind              # latest
+pi install npm:toxic-vault-mind@0.7.0        # pinned
+pi -e npm:toxic-vault-mind                   # try without installing
 ```
 
 Or from git:
 
 ```bash
-pi install git:git@github.com:kylebrodeur/pi-vault-mind
+pi install git:git@github.com:toxicwind/toxic-vault-mind
 ```
 
 ### 2. Configure (interactive wizard)
@@ -403,7 +403,7 @@ full design.
 | Doc | Description |
 |---|---|
 | [skills/vault-mind/SKILL.md](skills/vault-mind/SKILL.md) | The Manager skill — what pi auto-loads about this extension |
-| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Version history (rename from `pi-knowledge-store` to `pi-vault-mind` was v0.7.0) |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Version history (rename from `pi-knowledge-store` to `toxic-vault-mind` was v0.7.0) |
 | [Tools reference](docs/_reference/reference_archive/tools.md) | Registered Vault Mind tools, parameters, and return shapes |
 | [Commands reference](docs/_reference/reference_archive/commands.md) | Full `/vm` slash command tree |
 | [Setup and configuration](docs/reference/setup-and-configuration.md) | Current integrated setup/configuration surface, ownership, routes, and live gaps |
@@ -420,7 +420,7 @@ full design.
 
 | Doc | Description |
 |---|---|
-| [docs/_archive/](docs/_archive/) | Historical docs kept for context (e.g. the `pi-knowledge-store` → `pi-vault-mind` rename audit) |
+| [docs/_archive/](docs/_archive/) | Historical docs kept for context (e.g. the `pi-knowledge-store` → `toxic-vault-mind` rename audit) |
 | [docs/_archive/legacy-audit.md](docs/_archive/legacy-audit.md) | The 2026-06-08 legacy-terminology audit (139 findings, 13 blockers) and its resolution log. Resolved 2026-06-09 and archived 2026-06-16. |
 
 ## Contributing

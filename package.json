@@ -1,5 +1,5 @@
 {
-	"name": "pi-vault-mind",
+	"name": "toxic-vault-mind",
 	"version": "0.16.25",
 	"description": "Passive Obsidian vault extension for pi. Watches @agent markers, dispatches forked subagents (Miner, Broadcaster, Heavy-Lifter), stores in LanceDB with vector + FTS + graph. Multi-agent 'Drop & Forget' workflow for the pi agent ecosystem.",
 	"main": "dist/index.js",
@@ -44,12 +44,12 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/kylebrodeur/pi-vault-mind.git"
+		"url": "git+https://github.com/toxicwind/toxic-vault-mind.git"
 	},
 	"bugs": {
-		"url": "https://github.com/kylebrodeur/pi-vault-mind/issues"
+		"url": "https://github.com/toxicwind/toxic-vault-mind/issues"
 	},
-	"homepage": "https://github.com/kylebrodeur/pi-vault-mind#readme",
+	"homepage": "https://github.com/toxicwind/toxic-vault-mind#readme",
 	"engines": {
 		"node": ">=20.6.0"
 	},
