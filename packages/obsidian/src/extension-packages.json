@@ -5,5 +5,7 @@
 		"npm:@kylebrodeur/pi-model-discovery",
 		"npm:@kylebrodeur/pi-model-router"
 	],
-	"optional": ["npm:pi-1password"]
+	"optional": [
+		"npm:pi-1password"
+	]
 }
