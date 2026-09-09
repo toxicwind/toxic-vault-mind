@@ -1,0 +1,9 @@
+{
+	"required": [
+		"npm:pi-vault-mind",
+		"npm:pi-context",
+		"npm:@kylebrodeur/pi-model-discovery",
+		"npm:@kylebrodeur/pi-model-router"
+	],
+	"optional": ["npm:pi-1password"]
+}
