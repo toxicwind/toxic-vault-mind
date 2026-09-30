@@ -1,244 +1,151 @@
 # toxic-vault-mind
 
-[![npm version](https://img.shields.io/npm/v/toxic-vault-mind)](https://www.npmjs.com/package/toxic-vault-mind)
-[![license](https://img.shields.io/npm/l/toxic-vault-mind)](LICENSE)
-[![pi-extension](https://img.shields.io/badge/pi-extension-blue)](https://github.com/mariozechner/pi)
+> **Your Obsidian vault, with a memory.** Drop an `@agent` marker in any note — five specialist subagents research, extract, and index it into a local hybrid-search knowledge base. No chat pollution, no manual triggers, no cloud.
 
-Passive Obsidian vault extension for the [pi](https://github.com/mariozechner/pi) agent ecosystem. Watches `@agent` markers in your vault, dispatches forked subagents, and stores results in LanceDB with vector + FTS + graph. Multi-agent "Drop & Forget" workflow.
+<div align="right">
 
-> Looking for the legacy ledger-first extension (predecessor project)?
-> See [toxicwind/pi-qmd-ledger](https://github.com/toxicwind/pi-qmd-ledger).
-> This project was renamed twice: `pi-qmd-ledger` → `pi-knowledge-store` (intermediate) → `toxic-vault-mind` (current).
+[![npm](https://img.shields.io/npm/v/toxic-vault-mind?style=for-the-badge)](https://www.npmjs.com/package/toxic-vault-mind)
+[![license](https://img.shields.io/npm/l/toxic-vault-mind?style=for-the-badge)](LICENSE)
+[![pi-extension](https://img.shields.io/badge/pi-extension-blue?style=for-the-badge)](https://github.com/mariozechner/pi)
+[![local-first](https://img.shields.io/badge/local--first-offline%20embeddings-green?style=for-the-badge)](#security)
+
+</div>
+
+## Why you should care
+
+Most agent knowledge dies in chat logs. **toxic-vault-mind** is a passive memory layer for the [pi](https://github.com/mariozechner/pi) agent ecosystem: it watches your Obsidian vault, dispatches forked subagents on `@agent` markers, and stores everything in **JSONL you can read** (version-control friendly) plus a **LanceDB index** (vector + FTS + graph) that's fully rebuildable. All local — no external binaries, no SaaS, offline-capable embeddings.
+
+**Who it's for:** Obsidian users running pi agents who want a durable, searchable, agent-written knowledge base instead of ephemeral chat.
+
+**Security posture (up front):** everything runs on your machine. The JSONL source-of-truth lives in your vault, the LanceDB index is derived, embeddings default to a local offline model, and config is vault-local (`<vault>/.vault-mind/` — never a shared global file). The optional Modal provider is **bring-your-own deploy** to your own Modal account — there is no shared hosted endpoint, and its tokens stay yours.
+
+> **Legacy note:** looking for the ledger-first predecessor? See [toxicwind/pi-qmd-ledger](https://github.com/toxicwind/pi-qmd-ledger). This project was renamed twice: `pi-qmd-ledger` → `pi-knowledge-store` → `toxic-vault-mind`.
 
 ## Features
 
-- **Passive File Watcher** — drop `@agent-Miner`, `@agent-Broadcaster`, etc. in any Obsidian note. Save the file. The watcher detects the marker, groups by role, and dispatches isolated subagent forks (`vault-mind-{role}` agents). No chat pollution, no manual triggers.
-- **Multi-Agent Architecture** — five specialist agents under the `vault-mind-{role}` skill naming: **Manager** (interactive orchestrator), **Miner** (research + entity extraction), **Broadcaster** (NotebookLM artifacts), **Heavy-Lifter** (external delegation), **Watcher** (passive file observer).
-- **LanceDB Vector + FTS + Graph** — hybrid semantic + keyword search with automatic entity extraction and BFS graph traversal. All local, no external binaries.
-- **JSONL Source-of-Truth + LanceDB Index** — every fact lives in a durable, human-readable, version-control-friendly `collections/*.jsonl` file. The LanceDB index is derived and rebuildable via `/vm reindex --all --reembed`.
-- **Bidirectional Obsidian Sync** — substantial entries (`>200 chars` or tagged `decision`/`insight`/`requirement`) auto-write to `Vault/Agent/Inbox/`. Graph entities render as Obsidian Canvas files.
-- **Vault-Scoped Configuration Surface** — Vault Mind setup/config now lives under `<vault>/.vault-mind/`, with the Obsidian setup wizard and `/vm setup` both writing the vault-local surface instead of a shared global config.
-- **Interactive Setup Wizard** — the Obsidian setup wizard handles first-run runtime/install/provider/folder/preferences/review flow, and `/vm setup` remains available for CLI/repair use.
+- **Passive file watcher** — write `@agent-Miner` in any note and save. The watcher detects the marker, groups by role, and dispatches isolated subagent forks. "Drop & forget."
+- **Five specialist agents** — `vault-mind-{role}` skills: **Manager** (interactive orchestrator), **Miner** (research + entity extraction), **Broadcaster** (NotebookLM podcasts/study guides/decks), **Heavy-Lifter** (external delegation, git-worktree refactors), **Watcher** (the passive observer).
+- **Hybrid search** — semantic vector (LanceDB) + exact keyword (Tantivy BM25) + entity graph traversal (BFS). One query, three signals.
+- **JSONL source-of-truth** — every fact is a human-readable line in `collections/*.jsonl`. The LanceDB index is derived and rebuildable via `/vm reindex --all --reembed`.
+- **Tiered HITL** — `vm_append` runs in strict / gated / autopilot modes.
+- **Context injection** — regex injectors pre-fetch collection entries into prompts (`draft login` → matching entries land in the system prompt automatically).
+- **Bidirectional Obsidian sync** — substantial entries auto-write to `Vault/Agent/Inbox/`; graph entities render as Obsidian Canvas.
+- **Vault-scoped config** — setup lives under `<vault>/.vault-mind/`; `/vm setup` wizard for interactive config, CLI flags for scripting.
 
-## Architecture
+## How it works
 
-```
-┌─────────────────────────────────────────┐
-│  User prompt                             │
-│  e.g. "draft login"                      │
-└──────┬──────────────────────────────────┘
-       │
-       ▼
-┌─────────────────────────────────────────┐
-│  Injector regex match                    │
-│  → matches "draft\s+(\S+)"              │
-└──────┬──────────────────────────────────┘
-       │
-       ▼
-┌─────────────────────────────────────────┐
-│  query collections/main.jsonl            │
-│  where tag="login" + inject artifact.md  │
-└──────┬──────────────────────────────────┘
-       │
-       ▼
-┌─────────────────────────────────────────┐
-│  Appended to system prompt               │
-│  → LLM now has pre-fetched context       │
-└─────────────────────────────────────────┘
-
-Data Layer:
-┌─────────────────────────────────────────┐
-│  JSONL WAL (collections/*.jsonl)        │
-│  ─ durable, human-readable, versionable │
-│       │                                  │
-│       ▼ (auto-embed on append)           │
-│  LanceDB (.lancedb/)                    │
-│  ─ vector search + FTS + graph          │
-│       │                                  │
-│       ▼ (graph extraction)               │
-│  Graph Tables (entities + relations)     │
-│  ─ entity linking + traversal            │
-└─────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    A["📝 Obsidian note<br/>with @agent-Miner"] --> B["👁 Watcher<br/>passive file observer"]
+    B --> C["🤖 Forked subagent<br/>vault-mind-miner"]
+    C --> D["📄 JSONL<br/>collections/*.jsonl<br/>human-readable, versionable"]
+    D --> E["🗄 LanceDB index<br/>vector + FTS + graph"]
+    E --> F["🔍 vm_search / vm_fts_search /<br/>vm_graph_query"]
+    D --> G["↩ Obsidian sync<br/>Agent/Inbox + Canvas"]
+    F --> H["💬 Injector<br/>regex → system prompt"]
 ```
 
-See [`docs/architecture/index.md`](docs/architecture/index.md) for the full agent flow.
-
-## Obsidian Counterparts & Requirements
-
-toxic-vault-mind works on any directory, but for the **full Obsidian experience**, you need a few things in Obsidian itself:
-
-### Required: An Obsidian vault
-Just point `/vm setup` at any directory used as an Obsidian vault. toxic-vault-mind auto-detects `.obsidian/` and respects `.obsidian/`, `.git/`, `.trash/`.
-
-### Recommended: Official Obsidian CLI (1.12+)
-
-The [official Obsidian CLI](https://help.obsidian.md/cli) lets you install plugins, themes, and manage vault state from the terminal. **This is the safest, most direct install path** for toxic-vault-mind's required plugins.
-
-Install: Open Obsidian → **Settings → General → Command line interface** → enable. Follow the prompt to register the CLI to your system PATH. Restart your terminal. Test: `obsidian help`.
-
-Then run:
-```bash
-obsidian plugin:install id=obsidian-git enable
-obsidian plugin:install id=obsidian-breadcrumbs enable
-obsidian plugin:install id=graph-analysis enable
-obsidian plugin:install id=actions-uri enable
-obsidian plugin:install id=obsidian42-brat enable
-obsidian plugin:install id=obsidian-toxic-vault-mind enable
-
-Full walkthrough: see [`docs/integrations/OBSIDIAN_SETUP.md`](docs/integrations/OBSIDIAN_SETUP.md).
-
-### Recommended: Obsidian Community Plugins
-
-| Plugin | Install ID | Why | Status |
-|---|---|---|---|
-| **obsidian-git** | `obsidian-git` | Auto-commits vault changes for backup & conflict resolution. Heavy-Lifter uses git worktrees for isolated refactors. | Essential |
-| **Breadcrumbs** | `obsidian-breadcrumbs` | Parses typed edges (`agent:related-to`, `agent:derived-from`) in YAML frontmatter. The recommended way to display the agent-extracted knowledge graph in Obsidian's UI. | Highly recommended |
-| **Graph Analysis** | `graph-analysis` | Co-citation discovery, Jaccard similarity on the native Obsidian graph. Surfaces "always cited together but not yet linked" notes — a key agent discovery signal. | Highly recommended |
-| **Actions URI** | `actions-uri` | `x-callback-url` endpoints so the Manager agent can trigger Obsidian UI commands (open notes, run commands) from pi. | Recommended |
-| **Vault Mind plugin** | `obsidian-toxic-vault-mind` | Native setup/status/chat UI and HTTP bridge integration. | Recommended |
-
-### Recommended: `notesmd-cli` (headless alternative)
-
-For headless operations, CI, or when Obsidian isn't running, use [Yakitrak/notesmd-cli](https://github.com/Yakitrak/notesmd-cli). It does everything the official CLI does but doesn't require Obsidian to be open.
+## Quick start
 
 ```bash
-brew tap yakitrak/yakitrak && brew install yakitrak/yakitrak/notesmd-cli
-# or scoop, AUR, etc.
-
-notesmd-cli add-vault /path/to/vault
-notesmd-cli create "Note.md" --content "..." --append
+pi install npm:toxic-vault-mind        # or: pi -e npm:toxic-vault-mind (try without installing)
 ```
 
-Use the official `obsidian` CLI when Obsidian is running; use `notesmd-cli` when it isn't.
-
-### Beta plugins via BRAT
-
-For beta plugins not in the official store:
-
-```bash
-# Install BRAT first
-obsidian plugin:install id=obsidian42-brat enable
-
-# Then add beta plugin URLs via BRAT's interface, or:
-# In Obsidian: Settings → BRAT → Beta Plugin List → Add
-```
-
-### Recommended: kepano/obsidian-skills (pi skills)
-
-Install via the official [`skills` CLI](https://github.com/vercel-labs/skills)
-(pi is a first-class target agent — auto-detected):
-
-```bash
-# Non-interactive: install all 5 globally for pi
-DISABLE_TELEMETRY=1 yes y | npx -y skills add https://github.com/kepano/obsidian-skills \
-  --skill obsidian-markdown --skill obsidian-bases \
-  --skill json-canvas --skill obsidian-cli --skill defuddle \
-  -g -a pi --copy -y
-```
-
-This puts them at `~/.pi/agent/skills/<name>/SKILL.md` where pi
-auto-discovers them. The CLI handles agent detection, symlink/copy,
-and security risk confirmations.
-
-**Verify they're discoverable:**
-
-```bash
-for s in obsidian-markdown obsidian-bases json-canvas obsidian-cli defuddle; do
-  [ -f ~/.pi/agent/skills/$s/SKILL.md ] && echo "✅ $s" || echo "❌ $s"
-done
-```
-- `obsidian-markdown` — agent learns Obsidian-flavored markdown syntax
-- `obsidian-bases` — agent learns to generate valid `.base` files (database views)
-- `json-canvas` — agent learns Canvas JSON format (used for our graph sync)
-- `obsidian-cli` — agent learns to use the Obsidian CLI
-- `defuddle` — cleaner markdown extraction from web pages
-
-These skills let the **Miner, Broadcaster, and Heavy-Lifter agents** produce valid Obsidian content.
-
-### Built-in Obsidian features used
-
-| Feature | How toxic-vault-mind uses it |
-|---|---|
-| **YAML frontmatter properties** | Strict schema for typed edges (`agent:related-to`, `status: needs-podcast`, `domain:`, `tag:`) |
-| **Callouts** | `> [!info]`, `> [!warning]` for syntheses and contradictions |
-| **Embeds** | `![[Note]]` to transclude summaries into synthesis docs |
-| **Obsidian Bases (`.base`)** | Agent-generated dynamic tables/boards/kanbans in `Agent/Tasks/` |
-| **JSON Canvas (`.canvas`)** | `vm_sync(format="canvas")` writes entity graph as Canvas JSON |
-| **Obsidian Sync** | Primary sync mechanism across devices |
-
-### Optional: NotebookLM integration (Broadcaster)
-
-The Broadcaster agent can generate podcasts, study guides, and slide decks from vault content via the [notebooklm-mcp-cli](https://github.com/jacob-bd/notebooklm-mcp-cli) MCP server. Requires Google account login.
-
----
-
-## Quick Start
-
-### Prerequisites
-
-- **Node.js** 20+ (matches `engines` in `package.json`)
-- **Embedding Provider** — choose one:
-  - `@xenova/transformers` — built-in, no external deps (uses all-MiniLM-L6-v2, offline-capable)
-  - `ollama` — requires Ollama running locally with `embeddinggemma` (higher quality)
-  - `modal` — optional, **bring-your-own deploy**: offload embedding + bulk re-index to a cloud GPU service and sync vectors down for offline search (see [docs/integrations/MODAL_EMBEDDING.md](docs/integrations/MODAL_EMBEDDING.md)). Default behavior is unchanged until you opt in.
-
-> **On the Modal provider:** the local providers above work for everyone with
-> zero infrastructure — that's the default. `modal` is an **optional, self-hosted
-> tier**: you deploy your own copy of the service (`uvx modal deploy modal/app.py`
-> from a clone of this repo) to your own Modal account and point the extension at
-> *your* URL + token. There is no shared/hosted endpoint — a deployment's URL and
-> bearer token are private to whoever owns it. (A standalone PyPI package for the
-> server may come later.)
-
-### 1. Install with pi
-
-```bash
-pi install npm:toxic-vault-mind              # latest
-pi install npm:toxic-vault-mind@0.7.0        # pinned
-pi -e npm:toxic-vault-mind                   # try without installing
-```
-
-Or from git:
-
-```bash
-pi install git:git@github.com:toxicwind/toxic-vault-mind
-```
-
-### 2. Configure (interactive wizard)
+Then inside pi:
 
 ```
 /vm setup
 ```
 
-This configures the current vault's setup surface: vault path, embedding
-provider details, folder layout, and scaffolding.
-
-Or via CLI for scripting/repair:
-
-```bash
-/vm setup --vault /home/you/Obsidian/MyVault --remoteUrl https://your-embedding-service-url.example.com --model embeddinggemma
-```
-
-Config is written to the vault-local Vault Mind surface under
-`<vault>/.vault-mind/` rather than a shared global config file.
-
-You can re-run `/vm setup` anytime to view or change settings, and the
-Obsidian plugin's setup wizard uses the same extension-owned routes.
-
-### 3. Start using
+Start using it:
 
 ```
-vm_append(collection="main", mode="autopilot", entry={"id":"1","domain":"auth","fact":"JWT tokens expire after 1 hour","tag":"security"})
+vm_append(collection="main", mode="autopilot",
+  entry={"id":"1","domain":"auth","fact":"JWT tokens expire after 1 hour","tag":"security"})
 vm_search(collection="main", query="token expiry")
 ```
 
-Entries are automatically embedded and stored in LanceDB. If graph is enabled, entities and relations are also extracted.
+**Prerequisites:** Node.js 20+. Embedding provider — pick one: `@xenova/transformers` (built-in, all-MiniLM-L6-v2, offline), `ollama` (needs Ollama + `embeddinggemma`, higher quality), or `modal` (optional self-hosted GPU tier — deploy the embedding service to your own Modal account and point the extension at your URL + token).
 
-### 4. Adapt the config
+> **On the Modal provider:** local providers work for everyone with zero infrastructure — that's the default. `modal` is an optional self-hosted tier: you deploy your own copy of the embedding service to your own Modal account and point the extension at *your* URL + token. No shared endpoint exists. Remote bulk re-index: `/vm reindex --all --reembed --remote`.
 
-Edit `<vault>/.vault-mind/vault-mind.config.json` to match your domain:
+## Architecture
 
-```json
+```
+┌─────────────────────────────────────────┐
+│  Obsidian vault (any directory)          │
+│  @agent-{role} markers in notes          │
+└──────┬──────────────────────────────────┘
+       │  save file
+       ▼
+┌─────────────────────────────────────────┐
+│  Watcher — passive file observer         │
+│  groups markers by role                  │
+└──────┬──────────────────────────────────┘
+       │  fork isolated subagent
+       ▼
+┌─────────────────────────────────────────┐
+│  vault-mind-{role} skills                │
+│  manager · miner · broadcaster ·         │
+│  heavy-lifter · watcher                  │
+└──────┬──────────────────────────────────┘
+       │  vm_append (dual-write)
+       ▼
+┌─────────────────────────────────────────┐
+│  JSONL WAL — collections/*.jsonl        │
+│  durable · human-readable · versionable  │
+│       │ auto-embed on append             │
+│       ▼                                  │
+│  LanceDB (.lancedb/)                    │
+│  vector search + Tantivy FTS + graph     │
+│       │ graph extraction                 │
+│       ▼                                  │
+│  Graph tables (entities + relations)    │
+│  entity linking + BFS traversal          │
+└─────────────────────────────────────────┘
+```
+
+Data flow in one line: **marker → fork → JSONL → embed → LanceDB → search/inject/sync**.
+
+### Tools (LLM-accessible)
+
+| Tool | Purpose | Search type |
+|---|---|---|
+| `vm_search` | Semantic vector search | Vector (cosine) |
+| `vm_fts_search` | Exact keyword search | Tantivy BM25 |
+| `vm_graph_query` | Entity relationship traversal | Graph BFS |
+| `vm_query` | Deterministic JSONL search | Substring + exact filters |
+| `vm_append` | Dual-write: JSONL + LanceDB | Insert with auto-embed |
+| `vm_status` / `vm_stats` / `vm_describe` | Table health, dashboard, schema introspection | Metadata |
+| `vm_configure` | Read/update config at runtime | Config |
+| `vm_export` | Export to JSON/CSV/Markdown | Read |
+| `vm_promote` | Stage cross-collection promotions | Write |
+
+### Commands
+
+| Command | Purpose |
+|---|---|
+| `/vm setup` | Interactive vault-local setup wizard (also CLI/scriptable) |
+| `/vm init` | Scaffold config + collections |
+| `/vm validate` | Health-check LanceDB, config, collection paths |
+| `/vm approve [collection]` | Batch-review pending entries |
+| `/vm reindex [--all] [--reembed] [--remote]` | Rebuild FTS + vector indexes |
+| `/vm collection select \| create` | Manage collections (wizard available) |
+| `/vm injector create` | Create a context injector (wizard) |
+| `/vm embedding status \| use \| model \| models \| pull` | Embedding provider management |
+| `/vm watcher start \| stop \| status` | Manage the passive file watcher |
+| `/vm server status` | HTTP server health + port |
+| `/vm context status \| enable \| disable` | pi-context integration |
+| `/vm remote status \| config \| sync \| jobs \| migrate` | Remote embedding + vector sync |
+
+Full reference: [`skills/vault-mind/SKILL.md`](skills/vault-mind/SKILL.md) (Manager skill) and [`skills/vault-mind/references/tool-reference.md`](skills/vault-mind/references/tool-reference.md).
+
+## Config
+
+Vault-local surface — everything lives under `<vault>/.vault-mind/`:
+
+```jsonc
+// <vault>/.vault-mind/vault-mind.config.json
 {
   "version": 2,
   "collections": {
@@ -269,164 +176,54 @@ Edit `<vault>/.vault-mind/vault-mind.config.json` to match your domain:
 }
 ```
 
-## Example domains
+An annotated example ships at [`pi-vault-mind.config.example.json`](pi-vault-mind.config.example.json). Re-run `/vm setup` anytime to view or change settings; the Obsidian plugin's setup wizard writes the same vault-local surface.
 
-### Research project
+### Obsidian integration (optional but recommended)
 
-```json
-{
-  "collections": {
-    "findings": {
-      "path": "research/findings.jsonl",
-      "schema": ["id", "paper", "claim", "evidence", "confidence", "tag"],
-      "dedupField": "claim"
-    }
-  },
-  "injectors": [
-    {
-      "name": "lit-review",
-      "regex": "review\\s+(\\S+)",
-      "collection": "findings",
-      "filterField": "tag",
-      "artifactPath": "research/synthesis.md"
-    }
-  ]
-}
+toxic-vault-mind works on any directory; the full Obsidian experience needs a few pieces on the Obsidian side:
+
+| Plugin | Install ID | Why |
+|---|---|---|
+| **obsidian-git** | `obsidian-git` | Auto-commits vault changes; Heavy-Lifter uses git worktrees |
+| **Breadcrumbs** | `obsidian-breadcrumbs` | Renders typed edges (`agent:related-to`) from frontmatter |
+| **Graph Analysis** | `graph-analysis` | Co-citation discovery on the native graph |
+| **Actions URI** | `actions-uri` | Lets the Manager trigger Obsidian UI commands from pi |
+| **Vault Mind plugin** | `obsidian-toxic-vault-mind` | Native setup/status/chat UI + HTTP bridge (see [`packages/obsidian/`](packages/obsidian/)) |
+
+Install via the [official Obsidian CLI](https://help.obsidian.md/cli) (`obsidian plugin:install id=<id> enable`), or use [notesmd-cli](https://github.com/Yakitrak/notesmd-cli) when Obsidian isn't running. Headless/mobile flows, BRAT betas, and the `kepano/obsidian-skills` pi-skill set are documented in the repo's skill references (`skills/vault-mind-setup/`).
+
+## Repository map
+
+| Path | What it is |
+|---|---|
+| [`skills/`](skills/) | pi skills: `vault-mind` (Manager), `vault-mind-miner`, `vault-mind-broadcaster`, `vault-mind-heavy-lifter`, `vault-mind-manager`, `vault-mind-setup`, Obsidian plugin helpers |
+| [`agents/`](agents/) | Agent definitions: manager, miner, broadcaster, heavy-lifter, main, personalization |
+| [`packages/obsidian/`](packages/obsidian/) | Native Obsidian plugin (setup wizard, status/chat UI, HTTP bridge) |
+| [`packages/obsidian-ui/`](packages/obsidian-ui/) | Plugin UI components |
+| [`scripts/`](scripts/) | E2E harnesses, config generators, vault setup/reset, Modal smoke tests |
+| [`pi-vault-mind.config.example.json`](pi-vault-mind.config.example.json) | Annotated config example |
+| [`config-keys.json`](config-keys.json) · [`extension-packages.json`](extension-packages.json) | Generated config-key and package manifests |
+| [`CHANGELOG.md`](CHANGELOG.md) | Version history (current: **0.16.25**) |
+
+## Development & contributing
+
+```bash
+npm install        # install deps
+npm run build      # build to dist/
+npm test           # run tests
 ```
 
-### Decision log
+Release flow is codified in [`skills/pi-vault-mind-release/SKILL.md`](skills/pi-vault-mind-release/SKILL.md); Obsidian plugin publishing via [`scripts/publish-obsidian-plugin.sh`](scripts/publish-obsidian-plugin.sh). E2E coverage lives in `scripts/` (`cli-e2e.mjs`, `e2e-commands.mjs`, `configuration-e2e.mjs`, `modal-e2e-smoke.mjs`); reset a test vault with `scripts/reset-test-vault.sh`.
 
-```json
-{
-  "collections": {
-    "decisions": {
-      "path": "decisions/log.jsonl",
-      "schema": [
-        "id",
-        "date",
-        "context",
-        "decision",
-        "rationale",
-        "status",
-        "owner"
-      ],
-      "dedupField": "decision"
-    }
-  },
-  "injectors": [
-    {
-      "name": "decide",
-      "regex": "decide\\s+(\\S+)",
-      "collection": "decisions",
-      "filterField": "context"
-    }
-  ]
-}
-```
+## License & security
 
-## Tools
+**MIT** — © 2026 Kyle Brodeur. See [LICENSE](LICENSE).
 
-| Tool               | Purpose                                                 |
-| ------------------ | ------------------------------------------------------- |
-| `vm_search`       | Semantic search via LanceDB (vector + FTS)       |
-| `vm_fts_search`    | Exact keyword full-text search (Tantivy BM25)      |
-| `vm_graph_query`  | Traverse entity connections in the graph layer          |
-| `vm_status`       | Show LanceDB table sizes and health                     |
-| `vm_query`      | Deterministic JSONL search by collection name           |
-| `vm_append`     | Append with strict/gated/autopilot modes + dual-write   |
-| `vm_configure`  | Read or update config at runtime                        |
-| `vm_describe`   | Introspect schema, count, and sample entries            |
-| `vm_stats`      | Dashboard: counts, sizes, LanceDB status                |
-| `vm_export`     | Export to JSON, CSV, or Markdown                        |
-| `vm_promote`    | Promote entries between collections via pending queue  |
+- **Local-first:** your facts stay in your vault (`collections/*.jsonl`); the LanceDB index is derived and rebuildable.
+- **Offline-capable:** default embedding provider (`@xenova/transformers`) runs with no network.
+- **No shared cloud:** the Modal tier is self-hosted by you, on your account, with your tokens. Nothing phones home by default.
+- **Vault-local config:** no global credential/config file shared across vaults.
 
-## Commands
+---
 
-| Command                        | Purpose                                                  |
-| ------------------------------ | -------------------------------------------------------- |
-| `/vm help`                   | Show usage help                                          |
-| `/vm setup`                  | Interactive vault-local setup/config wizard (runtime, embedding, scaffold) |
-| `/vm validate`               | Health check LanceDB, config, and all collection paths   |
-| `/vm approve [collection]`   | Batch-review pending entries                              |
-| `/vm settings`               | Open interactive settings dashboard                       |
-| `/vm audit`                  | Audit config for missing defaults                         |
-| `/vm reindex [--all] [--reembed] [--remote]` | Rebuild FTS + vector indexes; `--remote` offloads to Modal |
-| `/vm collection select`      | Select active collection (shortcut: ctrl+alt+l)          |
-| `/vm collection create`      | Interactive wizard to create a new collection              |
-| `/vm injector create`        | Interactive wizard to create a new injector                |
-| `/vm context enable \| disable \| status` | Manage pi-context integration              |
-| `/vm embedding status \| use \| model \| models \| pull` | Manage embedding provider |
-| `/vm remote status \| config \| sync \| jobs \| migrate` | Manage remote embedding + vector sync |
-| `/vm watcher start \| stop \| status` | Manage the passive file watcher                  |
-| `/vm server status` | Show HTTP server status, port, and uptime |
-
-## Documentation
-
-Documentation is maintained directly in this repository.
-
-### Getting started
-
-| Doc | Description |
-|---|---|
-| [Install playbook](docs/_reference/reference_archive/getting-started/INSTALL.md) | Canonical install procedure for the extension, skills, Obsidian plugin, configuration, and external CLIs |
-| [Getting started](docs/_reference/reference_archive/getting-started/GETTING_STARTED.md) | End-to-end setup and daily “drop and forget” workflow |
-| [CLI-only walkthrough](docs/_reference/reference_archive/getting-started/CLI_ONLY_WALKTHROUGH.md) | Setup and daily commands without the Obsidian plugin |
-| [ReturnVape walkthrough](docs/getting-started/WALKTHROUGH.md) | Current guided Obsidian test-vault procedure |
-
-### Architecture & design
-
-| Doc | Description |
-|---|---|
-| [docs/architecture/AGENTS.md](docs/architecture/AGENTS.md) | Agent Roster and Multi-Agent Architecture ("Fork & Review" model) |
-| [docs/architecture/EXTENSION_WIRING.md](docs/architecture/EXTENSION_WIRING.md) | Extension dependencies, runtime wiring, auto-install patterns |
-| [docs/architecture/DISPATCHER_SPEC.md](docs/architecture/DISPATCHER_SPEC.md) | Technical spec for the passive file-watcher and subagent routing — incl. the "Fork & Dispatch" rationale and thread resume |
-
-### Modal embedding service (local integration done)
-
-The local extension now integrates the Modal embedding service as a fully
-configurable embedding provider: on-demand `/embed` for search (with an offline
-fallback that degrades to FTS, never crashes), a sync-down path that pulls
-server-side vectors into the local LanceDB with a monotonic `seq` watermark,
-remote bulk re-index (`/vm reindex --all --reembed --remote`), and debounced +
-batched append embedding via the coalescer. Existing non-modal users see no
-behavior change. See [docs/integrations/MODAL_EMBEDDING.md](docs/integrations/MODAL_EMBEDDING.md) for the
-full design.
-
-| Doc | Description |
-|---|---|
-| [docs/integrations/MODAL_EMBEDDING.md](docs/integrations/MODAL_EMBEDDING.md) | Design of record: ADRs, HTTP contract, sync protocol, roadmap for the cloud embedding service |
-| [modal/](modal/) | The deployable Modal app: embedding service + bulk worker + sync + dataset generator |
-| [eval/](eval/) | Retrieval eval harness + labeled benchmark datasets for picking the canonical model |
-
-### Reference
-
-| Doc | Description |
-|---|---|
-| [skills/vault-mind/SKILL.md](skills/vault-mind/SKILL.md) | The Manager skill — what pi auto-loads about this extension |
-| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Version history (rename from `pi-knowledge-store` to `toxic-vault-mind` was v0.7.0) |
-| [Tools reference](docs/_reference/reference_archive/tools.md) | Registered Vault Mind tools, parameters, and return shapes |
-| [Commands reference](docs/_reference/reference_archive/commands.md) | Full `/vm` slash command tree |
-| [Setup and configuration](docs/reference/setup-and-configuration.md) | Current integrated setup/configuration surface, ownership, routes, and live gaps |
-| [Skill manifest](docs/_reference/reference_archive/skill.md) | Bundled skills and their trigger phrases |
-
-### Development
-
-| Doc | Description |
-|---|---|
-| [docs/development/CONTRIBUTING.md](docs/development/CONTRIBUTING.md) | Dev setup, testing, and commit conventions |
-| [docs/development/PUBLISHING.md](docs/development/PUBLISHING.md) | How to publish this extension to npm |
-
-### Archive
-
-| Doc | Description |
-|---|---|
-| [docs/_archive/](docs/_archive/) | Historical docs kept for context (e.g. the `pi-knowledge-store` → `toxic-vault-mind` rename audit) |
-| [docs/_archive/legacy-audit.md](docs/_archive/legacy-audit.md) | The 2026-06-08 legacy-terminology audit (139 findings, 13 blockers) and its resolution log. Resolved 2026-06-09 and archived 2026-06-16. |
-
-## Contributing
-
-See [docs/development/CONTRIBUTING.md](docs/development/CONTRIBUTING.md) for dev setup, testing, and commit conventions.
-
-## License
-
-MIT — see [LICENSE](LICENSE) (or package.json).
+*Built for the [pi](https://github.com/mariozechner/pi) agent ecosystem. Formerly `pi-qmd-ledger` → `pi-knowledge-store`.*
